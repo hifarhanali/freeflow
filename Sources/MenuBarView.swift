@@ -118,13 +118,14 @@ struct MenuBarView: View {
             }
             .disabled(appState.isTranscribing)
 
-            if let hotkeyError = appState.hotkeyMonitoringErrorMessage {
+            if appState.hotkeyMonitoringErrorMessage != nil {
                 Divider()
-                Text(hotkeyError)
-                    .foregroundStyle(.red)
-                    .font(.caption)
-                    .padding(.horizontal, 16)
-                    .lineLimit(3)
+                Button {
+                    appState.openAccessibilitySettings()
+                } label: {
+                    Label("Grant Accessibility Permission", systemImage: "lock.shield")
+                        .foregroundStyle(.orange)
+                }
             }
 
             if let error = appState.errorMessage {

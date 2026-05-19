@@ -29,7 +29,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             if !AXIsProcessTrusted() {
-                appState.showAccessibilityAlert()
+                // Open System Settings → Accessibility directly so the user can toggle on.
+                appState.openAccessibilitySettings()
             }
         }
 
@@ -172,7 +173,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if !AXIsProcessTrusted() {
-            appState.showAccessibilityAlert()
+            appState.openAccessibilitySettings()
         }
     }
 }

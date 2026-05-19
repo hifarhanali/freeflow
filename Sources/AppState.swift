@@ -580,6 +580,7 @@ final class AppState: ObservableObject, @unchecked Sendable {
     private var pendingOverlayDismissToken: UUID?
     private var shouldMonitorHotkeys = false
     private var isCapturingShortcut = false
+    private var hotkeyRetryWorkItem: DispatchWorkItem?
     private var isAwaitingMicrophonePermission = false
     private var pendingMicrophonePermissionTriggerMode: RecordingTriggerMode?
     private var pendingMicrophonePermissionSelectionSnapshot: AppSelectionSnapshot?
@@ -1218,8 +1219,14 @@ final class AppState: ObservableObject, @unchecked Sendable {
         hasScreenRecordingPermission = hasScreenCapturePermission()
         accessibilityTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             DispatchQueue.main.async {
-                self?.hasAccessibility = AXIsProcessTrusted()
-                self?.hasScreenRecordingPermission = self?.hasScreenCapturePermission() ?? false
+                guard let self else { return }
+                let prev = self.hasAccessibility
+                self.hasAccessibility = AXIsProcessTrusted()
+                self.hasScreenRecordingPermission = self.hasScreenCapturePermission()
+                // If accessibility was just granted, retry the event tap.
+                if !prev && self.hasAccessibility && self.shouldMonitorHotkeys {
+                    self.restartHotkeyMonitoring()
+                }
             }
         }
     }
@@ -1517,6 +1524,8 @@ final class AppState: ObservableObject, @unchecked Sendable {
     func stopHotkeyMonitoring() {
         shouldMonitorHotkeys = false
         hotkeyMonitoringErrorMessage = nil
+        hotkeyRetryWorkItem?.cancel()
+        hotkeyRetryWorkItem = nil
         hotkeyManager.onShortcutEvent = nil
         hotkeyManager.onEscapeKeyPressed = nil
         hotkeyManager.stop()
@@ -1548,6 +1557,9 @@ final class AppState: ObservableObject, @unchecked Sendable {
     }
 
     private func restartHotkeyMonitoring() {
+        hotkeyRetryWorkItem?.cancel()
+        hotkeyRetryWorkItem = nil
+
         guard shouldMonitorHotkeys, !isCapturingShortcut, !isAwaitingMicrophonePermission else {
             hotkeyManager.stop()
             return
@@ -1559,6 +1571,12 @@ final class AppState: ObservableObject, @unchecked Sendable {
         } catch {
             hotkeyMonitoringErrorMessage = error.localizedDescription
             os_log(.error, log: recordingLog, "Hotkey monitoring failed to start: %{public}@", error.localizedDescription)
+            // Retry after 3 seconds — handles the window between TCC grant and kernel recognizing it.
+            let item = DispatchWorkItem { [weak self] in
+                self?.restartHotkeyMonitoring()
+            }
+            hotkeyRetryWorkItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: item)
         }
     }
 

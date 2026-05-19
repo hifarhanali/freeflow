@@ -1,7 +1,8 @@
 import Cocoa
+import ApplicationServices
 import os.log
 
-private let shortcutLog = OSLog(subsystem: "com.zachlatta.freeflow", category: "Shortcuts")
+private let shortcutLog = OSLog(subsystem: "com.zachlatta.freeflow.dev", category: "Shortcuts")
 
 enum GlobalShortcutBackendError: LocalizedError {
     case eventTapUnavailable
@@ -58,6 +59,9 @@ final class GlobalShortcutBackend {
             return backend.handleEventTap(type: type, event: event)
         }
 
+        let trusted = AXIsProcessTrusted()
+        NSLog("[FreeFlow] installEventTap: AXIsProcessTrusted=%d", trusted ? 1 : 0)
+        Self.writeDebug("installEventTap: trusted=\(trusted)")
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -66,9 +70,13 @@ final class GlobalShortcutBackend {
             callback: callback,
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
+            NSLog("[FreeFlow] CGEvent.tapCreate returned nil (trusted=%d) — accessibility not granted or TCC entry stale", trusted ? 1 : 0)
+            Self.writeDebug("tapCreate FAILED: trusted=\(trusted)")
             os_log(.error, log: shortcutLog, "Failed to install global shortcut event tap")
             throw GlobalShortcutBackendError.eventTapUnavailable
         }
+        NSLog("[FreeFlow] Event tap installed successfully")
+        Self.writeDebug("tapCreate OK")
 
         guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
             CFMachPortInvalidate(tap)
@@ -81,6 +89,23 @@ final class GlobalShortcutBackend {
 
         eventTap = tap
         eventTapRunLoopSource = source
+    }
+
+    private static func writeDebug(_ message: String) {
+        let path = (NSHomeDirectory() as NSString).appendingPathComponent("freeflow-debug.log")
+        let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        let line = "\(ts) \(message)\n"
+        if let data = line.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: path) {
+                if let fh = FileHandle(forWritingAtPath: path) {
+                    fh.seekToEndOfFile()
+                    fh.write(data)
+                    fh.closeFile()
+                }
+            } else {
+                try? data.write(to: URL(fileURLWithPath: path))
+            }
+        }
     }
 
     private func tearDownEventTap() {
