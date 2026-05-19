@@ -236,7 +236,7 @@ final class AppState: ObservableObject, @unchecked Sendable {
     let maxPipelineHistoryCount = 20
     static let defaultContextScreenshotMaxDimension = Int(AppContextService.defaultScreenshotMaxDimension)
     static let contextScreenshotDimensionOptions = [1024, 768, 640, 512]
-    static let defaultTranscriptionModel = "whisper-large-v3"
+    static let defaultTranscriptionModel = WhisperKitTranscriptionService.defaultModelId
     static let transcriptionLanguageOptions: [(code: String, name: String)] = [
         ("", "Auto-detect"),
         ("en", "English"),
@@ -269,9 +269,9 @@ final class AppState: ObservableObject, @unchecked Sendable {
         ("hu", "Hungarian"),
         ("ca", "Catalan")
     ]
-    static let defaultPostProcessingModel = "openai/gpt-oss-20b"
-    static let defaultPostProcessingFallbackModel = "meta-llama/llama-4-scout-17b-16e-instruct"
-    static let defaultContextModel = "meta-llama/llama-4-scout-17b-16e-instruct"
+    static let defaultPostProcessingModel = BedrockTransport.defaultModelId
+    static let defaultPostProcessingFallbackModel = BedrockTransport.defaultModelId
+    static let defaultContextModel = BedrockTransport.defaultModelId
     private static let trailingPressEnterCommandPattern = try! NSRegularExpression(
         pattern: #"(?i)(?:^|[ \t\r\n,;:\-]+)press[ \t\r\n]+enter[\s\p{P}]*$"#
     )
@@ -777,7 +777,7 @@ final class AppState: ObservableObject, @unchecked Sendable {
         }
     }
 
-    static let defaultAPIBaseURL = "https://api.groq.com/openai/v1"
+    static let defaultAPIBaseURL = "https://api.groq.com/openai/v1" // unused — Bedrock replaces Groq
 
     private struct StoredShortcutConfiguration {
         let hold: ShortcutBinding
@@ -927,11 +927,9 @@ final class AppState: ObservableObject, @unchecked Sendable {
         return trimmed.isEmpty ? apiKey : trimmed
     }
 
-    func makeTranscriptionService() throws -> TranscriptionService {
-        try TranscriptionService(
-            apiKey: resolvedTranscriptionAPIKey,
-            baseURL: resolvedTranscriptionBaseURL,
-            transcriptionModel: transcriptionModel,
+    func makeTranscriptionService() throws -> WhisperKitTranscriptionService {
+        WhisperKitTranscriptionService(
+            modelId: transcriptionModel.isEmpty ? WhisperKitTranscriptionService.defaultModelId : transcriptionModel,
             language: resolvedTranscriptionLanguage
         )
     }
@@ -2307,7 +2305,7 @@ final class AppState: ObservableObject, @unchecked Sendable {
     /// strict order to avoid paying for both when realtime succeeds.
     private static func resolveRawTranscript(
         realtimeService: RealtimeTranscriptionService?,
-        fileService: TranscriptionService,
+        fileService: WhisperKitTranscriptionService,
         fileURL: URL
     ) async throws -> String {
         if let realtimeService {

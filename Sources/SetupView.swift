@@ -139,11 +139,11 @@ struct SetupView: View {
                     Group {
                         if currentStep != .ready {
                             if currentStep == .apiKey {
-                                Button(isValidatingKey ? "Validating..." : "Continue") {
-                                    validateAndContinue()
+                                // API key no longer required — local Whisper + Bedrock handle STT/LLM.
+                                Button("Continue") {
+                                    withAnimation { currentStep = nextStep(currentStep) }
                                 }
                                 .keyboardShortcut(.defaultAction)
-                                .disabled(apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isValidatingKey)
                             } else if currentStep == .vocabulary {
                                 Button("Continue") {
                                     saveCustomVocabularyAndContinue()
@@ -384,15 +384,15 @@ struct SetupView: View {
             Spacer(minLength: 0)
 
             VStack(spacing: 20) {
-                Image(systemName: "key.fill")
+                Image(systemName: "lock.shield.fill")
                     .font(.system(size: 60))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(.green)
 
-                Text("API Key")
+                Text("Privacy-First Setup")
                     .font(.title)
                     .fontWeight(.bold)
 
-                Text("Enter an API key for your OpenAI-compatible provider. If you are not using Groq, expand the advanced provider settings and enter that provider's base URL and model IDs before continuing.")
+                Text("No API key required. This build uses **local Whisper** (on-device via Apple Neural Engine) for speech-to-text and **AWS Bedrock** for cleanup — no audio or text leaves your machine to unapproved vendors.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

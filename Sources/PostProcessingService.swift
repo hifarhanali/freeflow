@@ -116,8 +116,8 @@ Behavior:
     private let baseURL: String
     private let preferredModel: String
     private let preferredFallbackModel: String
-    private let defaultModel = "openai/gpt-oss-20b"
-    private let defaultFallbackModel = "meta-llama/llama-4-scout-17b-16e-instruct"
+    private let defaultModel = BedrockTransport.defaultModelId
+    private let defaultFallbackModel = BedrockTransport.defaultModelId
     private let defaultModelReasoningEffort = "low"
     private let postProcessingMaxCompletionTokens = 4096
     private let postProcessingTimeoutSeconds: TimeInterval = 20
@@ -415,7 +415,7 @@ Model: \(model)
 
         request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
 
-        let (data, response) = try await LLMAPITransport.data(for: request)
+        let (data, response) = try await BedrockTransport.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw PostProcessingError.invalidResponse("No HTTP response")
         }
@@ -523,7 +523,7 @@ Model: \(model)
 
         request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
 
-        let (data, response) = try await LLMAPITransport.data(for: request)
+        let (data, response) = try await BedrockTransport.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw PostProcessingError.invalidResponse("No HTTP response")
         }

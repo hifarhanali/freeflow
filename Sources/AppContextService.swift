@@ -50,14 +50,14 @@ Return only two sentences, no labels, no markdown, no extra commentary.
         apiKey: String,
         baseURL: String = "https://api.groq.com/openai/v1",
         customContextPrompt: String = "",
-        contextModel: String = "meta-llama/llama-4-scout-17b-16e-instruct",
+        contextModel: String = BedrockTransport.defaultModelId,
         screenshotMaxDimension: CGFloat = AppContextService.defaultScreenshotMaxDimension
     ) {
         self.apiKey = apiKey
         self.baseURL = baseURL
         self.customContextPrompt = customContextPrompt
         let trimmedModel = contextModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.contextModel = trimmedModel.isEmpty ? "meta-llama/llama-4-scout-17b-16e-instruct" : trimmedModel
+        self.contextModel = trimmedModel.isEmpty ? BedrockTransport.defaultModelId : trimmedModel
         self.screenshotMaxDimension = screenshotMaxDimension > 0
             ? screenshotMaxDimension
             : AppContextService.defaultScreenshotMaxDimension
@@ -260,7 +260,7 @@ Selected text: \(selectedText ?? "None")
             ]
 
             request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
-            let (data, response) = try await LLMAPITransport.data(for: request)
+            let (data, response) = try await BedrockTransport.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
                 return nil
             }
