@@ -40,44 +40,20 @@ private let iso8601DayFormatter: DateFormatter = {
 
 struct ProviderSettingsFields: View {
     @EnvironmentObject var appState: AppState
-    @Binding var apiBaseURLInput: String
-    @Binding var transcriptionAPIURLInput: String
-    @Binding var transcriptionAPIKeyInput: String
-    @FocusState private var isEditingAPIBaseURL: Bool
     @FocusState private var isEditingTranscriptionModel: Bool
-    @FocusState private var isEditingRealtimeStreamingModel: Bool
     @FocusState private var isEditingPostProcessingModel: Bool
     @FocusState private var isEditingPostProcessingFallbackModel: Bool
     @FocusState private var isEditingContextModel: Bool
-    @FocusState private var transcriptionAPIURLFocused: Bool
-    @FocusState private var transcriptionAPIKeyFocused: Bool
     @State private var transcriptionModelDraft: String = ""
-    @State private var realtimeStreamingModelDraft: String = ""
     @State private var postProcessingModelDraft: String = ""
     @State private var postProcessingFallbackModelDraft: String = ""
     @State private var contextModelDraft: String = ""
-
-    let showsModelDescription: Bool
-
-    private func commitAPIBaseURL() {
-        let trimmed = apiBaseURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedBaseURL = trimmed.isEmpty ? AppState.defaultAPIBaseURL : trimmed
-        apiBaseURLInput = resolvedBaseURL
-        appState.apiBaseURL = resolvedBaseURL
-    }
 
     private func commitTranscriptionModel() {
         let trimmed = transcriptionModelDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         transcriptionModelDraft = trimmed
         guard appState.transcriptionModel != trimmed else { return }
         appState.transcriptionModel = trimmed
-    }
-
-    private func commitRealtimeStreamingModel() {
-        let trimmed = realtimeStreamingModelDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        realtimeStreamingModelDraft = trimmed
-        guard appState.realtimeStreamingModel != trimmed else { return }
-        appState.realtimeStreamingModel = trimmed
     }
 
     private func commitPostProcessingModel() {
@@ -101,56 +77,8 @@ struct ProviderSettingsFields: View {
         appState.contextModel = trimmed
     }
 
-    private func commitTranscriptionAPIURL() {
-        let trimmed = transcriptionAPIURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        transcriptionAPIURLInput = trimmed
-        guard appState.transcriptionAPIURL != trimmed else { return }
-        appState.transcriptionAPIURL = trimmed
-    }
-
-    private func commitTranscriptionAPIKey() {
-        let trimmed = transcriptionAPIKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        transcriptionAPIKeyInput = trimmed
-        guard appState.transcriptionAPIKey != trimmed else { return }
-        appState.transcriptionAPIKey = trimmed
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("API Base URL")
-                .font(.caption.weight(.semibold))
-
-            Text("Change this to use a different OpenAI-compatible API provider.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 8) {
-                TextField(AppState.defaultAPIBaseURL, text: $apiBaseURLInput)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-                    .focused($isEditingAPIBaseURL)
-                    .onSubmit {
-                        commitAPIBaseURL()
-                    }
-                    .onChange(of: isEditingAPIBaseURL) { isEditing in
-                        if !isEditing {
-                            commitAPIBaseURL()
-                        }
-                    }
-
-                Button("Reset to Default") {
-                    apiBaseURLInput = AppState.defaultAPIBaseURL
-                    appState.apiBaseURL = AppState.defaultAPIBaseURL
-                }
-                .font(.caption)
-            }
-
-            if showsModelDescription {
-                Text("If you use another provider, enter that provider's model IDs here.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
             VStack(alignment: .leading, spacing: 6) {
                 Text("Post-Processing Model")
                     .font(.caption.weight(.semibold))
@@ -270,99 +198,9 @@ struct ProviderSettingsFields: View {
                     .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Transcription API URL")
-                    .font(.caption.weight(.semibold))
-                HStack(spacing: 8) {
-                    TextField("Uses API Base URL when empty", text: $transcriptionAPIURLInput)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(.body, design: .monospaced))
-                        .focused($transcriptionAPIURLFocused)
-                        .onSubmit {
-                            commitTranscriptionAPIURL()
-                        }
-                        .onChange(of: transcriptionAPIURLFocused) { isFocused in
-                            if !isFocused {
-                                commitTranscriptionAPIURL()
-                            }
-                        }
-                    if !transcriptionAPIURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Button("Clear") {
-                            transcriptionAPIURLInput = ""
-                            appState.transcriptionAPIURL = ""
-                        }
-                        .font(.caption)
-                    }
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Transcription API Key")
-                    .font(.caption.weight(.semibold))
-                HStack(spacing: 8) {
-                    SecureField("Uses API Key when empty", text: $transcriptionAPIKeyInput)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(.body, design: .monospaced))
-                        .focused($transcriptionAPIKeyFocused)
-                        .onSubmit {
-                            commitTranscriptionAPIKey()
-                        }
-                        .onChange(of: transcriptionAPIKeyFocused) { isFocused in
-                            if !isFocused {
-                                commitTranscriptionAPIKey()
-                            }
-                        }
-                    if !transcriptionAPIKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Button("Clear") {
-                            transcriptionAPIKeyInput = ""
-                            appState.transcriptionAPIKey = ""
-                        }
-                        .font(.caption)
-                    }
-                }
-            }
-
-            Divider()
-
-            Toggle(
-                "Stream audio while recording (realtime)",
-                isOn: $appState.realtimeStreamingEnabled
-            )
-            Text("Streams audio through the provider's OpenAI-compatible /v1/realtime WebSocket so transcription runs while you speak.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Realtime Transcription Model")
-                    .font(.caption.weight(.semibold))
-                HStack(spacing: 8) {
-                    TextField("Required by some providers, e.g. gpt-4o-transcribe", text: $realtimeStreamingModelDraft)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($isEditingRealtimeStreamingModel)
-                        .onSubmit {
-                            commitRealtimeStreamingModel()
-                        }
-                        .onChange(of: isEditingRealtimeStreamingModel) { isEditing in
-                            if !isEditing {
-                                commitRealtimeStreamingModel()
-                            }
-                        }
-                    if !realtimeStreamingModelDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Button("Reset") {
-                            realtimeStreamingModelDraft = ""
-                            appState.realtimeStreamingModel = ""
-                        }
-                        .font(.caption)
-                    }
-                }
-                Text("Used only for realtime streaming. Leave empty for providers that supply a server default.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
         .onAppear {
             transcriptionModelDraft = appState.transcriptionModel
-            realtimeStreamingModelDraft = appState.realtimeStreamingModel
             postProcessingModelDraft = appState.postProcessingModel
             postProcessingFallbackModelDraft = appState.postProcessingFallbackModel
             contextModelDraft = appState.contextModel
@@ -370,11 +208,6 @@ struct ProviderSettingsFields: View {
         .onChange(of: appState.transcriptionModel) { value in
             if !isEditingTranscriptionModel {
                 transcriptionModelDraft = value
-            }
-        }
-        .onChange(of: appState.realtimeStreamingModel) { value in
-            if !isEditingRealtimeStreamingModel {
-                realtimeStreamingModelDraft = value
             }
         }
         .onChange(of: appState.postProcessingModel) { value in
@@ -517,14 +350,6 @@ struct GeneralSettingsView: View {
     @Environment(\.openURL) private var openURL
     @AppStorage("show_menu_bar_icon") private var showMenuBarIcon = true
     @AppStorage("use_compact_overlay") private var useCompactOverlay = true
-    @State private var apiKeyInput: String = ""
-    @State private var apiBaseURLInput: String = ""
-    @State private var transcriptionAPIURLInput: String = ""
-    @State private var transcriptionAPIKeyInput: String = ""
-    @State private var advancedProviderSettingsExpanded = false
-    @State private var isValidatingKey = false
-    @State private var keyValidationError: String?
-    @State private var keyValidationSuccess = false
     @State private var customVocabularyInput: String = ""
     @State private var micPermissionGranted = false
     @State private var showMutedHint = false
@@ -695,8 +520,9 @@ struct GeneralSettingsView: View {
                 SettingsCard("Updates", icon: "arrow.triangle.2.circlepath") {
                     updatesSection
                 }
-                SettingsCard("API Key", icon: "key.fill") {
-                    apiKeySection
+                SettingsCard("AI Models", icon: "cpu") {
+                    ProviderSettingsFields()
+                        .environmentObject(appState)
                 }
                 SettingsCard("Output Language", icon: "globe") {
                     outputLanguageSection
@@ -735,24 +561,10 @@ struct GeneralSettingsView: View {
             .padding(24)
         }
         .onAppear {
-            apiKeyInput = appState.apiKey
-            apiBaseURLInput = appState.apiBaseURL
-            transcriptionAPIURLInput = appState.transcriptionAPIURL
-            transcriptionAPIKeyInput = appState.transcriptionAPIKey
             customVocabularyInput = appState.customVocabulary
             checkMicPermission()
             appState.refreshLaunchAtLoginStatus()
             Task { await githubCache.fetchIfNeeded() }
-        }
-        .onChange(of: appState.transcriptionAPIURL) { value in
-            if transcriptionAPIURLInput != value {
-                transcriptionAPIURLInput = value
-            }
-        }
-        .onChange(of: appState.transcriptionAPIKey) { value in
-            if transcriptionAPIKeyInput != value {
-                transcriptionAPIKeyInput = value
-            }
         }
     }
 
@@ -946,88 +758,6 @@ struct GeneralSettingsView: View {
         }
         copiedBuildInfoResetWorkItem = resetWorkItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: resetWorkItem)
-    }
-
-    // MARK: API Key
-
-    private var apiKeySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("\(AppName.displayName) uses the configured transcription model with your selected OpenAI-compatible provider.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 8) {
-                SecureField("Enter your Groq API key", text: $apiKeyInput)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-                    .disabled(isValidatingKey)
-                    .onChange(of: apiKeyInput) { _ in
-                        keyValidationError = nil
-                        keyValidationSuccess = false
-                    }
-
-                Button(isValidatingKey ? "Validating..." : "Save") {
-                    validateAndSaveKey()
-                }
-                .disabled(apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isValidatingKey)
-            }
-
-            if let error = keyValidationError {
-                Label(error, systemImage: "xmark.circle.fill")
-                    .foregroundStyle(.red)
-                    .font(.caption)
-            } else if keyValidationSuccess {
-                Label("API key saved", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                    .font(.caption)
-            }
-
-            DisclosureGroup(isExpanded: $advancedProviderSettingsExpanded) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Divider()
-                    ProviderSettingsFields(
-                        apiBaseURLInput: $apiBaseURLInput,
-                        transcriptionAPIURLInput: $transcriptionAPIURLInput,
-                        transcriptionAPIKeyInput: $transcriptionAPIKeyInput,
-                        showsModelDescription: false
-                    )
-                }
-            } label: {
-                HStack {
-                    Text("Advanced Provider Settings")
-                    Spacer()
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    advancedProviderSettingsExpanded.toggle()
-                }
-            }
-            .padding(.top, 4)
-        }
-    }
-
-    private func validateAndSaveKey() {
-        let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        let baseURL = apiBaseURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        isValidatingKey = true
-        keyValidationError = nil
-        keyValidationSuccess = false
-
-        Task {
-            let valid = await TranscriptionService.validateAPIKey(
-                key,
-                baseURL: baseURL.isEmpty ? AppState.defaultAPIBaseURL : baseURL
-            )
-            await MainActor.run {
-                isValidatingKey = false
-                if valid {
-                    appState.apiKey = key
-                    keyValidationSuccess = true
-                } else {
-                    keyValidationError = "Validation failed. Please check your API key and provider settings, then try again."
-                }
-            }
-        }
     }
 
     // MARK: Output Language

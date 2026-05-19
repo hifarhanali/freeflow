@@ -2,12 +2,24 @@ import CryptoKit
 import Foundation
 
 // Drop-in replacement for LLMAPITransport — routes OpenAI-format chat completions
-// to AWS Bedrock Claude via SigV4. Reads credentials from env vars or ~/.aws/credentials.
+// to AWS Bedrock Claude.
+//
+// Auth priority:
+//   1. AWS_BEARER_TOKEN_BEDROCK env var → Bearer token, OpenAI format, gateway URL
+//   2. SigV4 via AWS_ACCESS_KEY_ID / ~/.aws/credentials → Bedrock native format
 enum BedrockTransport {
 
     // MARK: - Public API (same signature as LLMAPITransport)
 
     static func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        let env = ProcessInfo.processInfo.environment
+
+        // Fast path: Motive Bedrock gateway token — no SigV4, keep OpenAI format
+        if let token = env["AWS_BEARER_TOKEN_BEDROCK"], !token.isEmpty {
+            return try await bearerTokenRequest(originalRequest: request, token: token)
+        }
+
+        // Slow path: SigV4 with native Bedrock format
         guard let body = request.httpBody,
               let payload = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
         else { throw BedrockError.invalidRequest("Missing or invalid JSON body") }
@@ -32,6 +44,33 @@ enum BedrockTransport {
             headerFields: ["Content-Type": "application/json"]
         )!
         return (openAIData, syntheticResponse)
+    }
+
+    // MARK: - Bearer token path
+
+    // Forwards the request as-is with Bearer token auth.
+    // Gateway URL: BEDROCK_GATEWAY_URL env var, or constructed from region + path from original request.
+    private static func bearerTokenRequest(originalRequest: URLRequest, token: String) async throws -> (Data, URLResponse) {
+        let env = ProcessInfo.processInfo.environment
+        let gatewayBase = env["BEDROCK_GATEWAY_URL"].flatMap { $0.isEmpty ? nil : $0 }
+            ?? "https://bedrock-runtime.\(region).amazonaws.com/v1"
+
+        // Keep the original path (e.g. /chat/completions) but swap the base
+        let originalPath = originalRequest.url?.path ?? "/chat/completions"
+        guard let url = URL(string: gatewayBase.trimmingCharacters(in: .init(charactersIn: "/")) + originalPath) else {
+            throw BedrockError.invalidRequest("Cannot construct gateway URL from \(gatewayBase)\(originalPath)")
+        }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = originalRequest.httpMethod ?? "POST"
+        req.httpBody = originalRequest.httpBody
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.timeoutInterval = 30
+
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.finishTasksAndInvalidate() }
+        return try await session.data(for: req)
     }
 
     // MARK: - Defaults

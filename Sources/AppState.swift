@@ -311,6 +311,7 @@ final class AppState: ObservableObject, @unchecked Sendable {
     @Published var transcriptionModel: String {
         didSet {
             UserDefaults.standard.set(transcriptionModel, forKey: transcriptionModelStorageKey)
+            cachedTranscriptionService = nil  // force reload with new model on next use
         }
     }
 
@@ -559,6 +560,7 @@ final class AppState: ObservableObject, @unchecked Sendable {
     private var transcriptionTask: Task<Void, Never>?
     private var transcribingAudioFileName: String?
     private var contextService: AppContextService
+    private var cachedTranscriptionService: WhisperKitTranscriptionService?
     private var contextCaptureTask: Task<AppContext?, Never>?
     private var capturedContext: AppContext?
     private var hasShownScreenshotPermissionAlert = false
@@ -746,6 +748,19 @@ final class AppState: ObservableObject, @unchecked Sendable {
 
         // Clear any stale recording flag left over from an unclean exit.
         AppState.writeRecordingStateFlag(false)
+
+        // Pre-download / warm the WhisperKit model so first dictation is instant.
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.statusText = "Loading Whisper model..."
+            do {
+                let svc = try self.makeTranscriptionService()
+                try await svc.loadModel()
+                self.statusText = "Ready"
+            } catch {
+                self.statusText = "Ready"  // fall back silently; model loads on first use
+            }
+        }
     }
 
     deinit {
@@ -928,10 +943,13 @@ final class AppState: ObservableObject, @unchecked Sendable {
     }
 
     func makeTranscriptionService() throws -> WhisperKitTranscriptionService {
-        WhisperKitTranscriptionService(
+        if let cached = cachedTranscriptionService { return cached }
+        let svc = WhisperKitTranscriptionService(
             modelId: transcriptionModel.isEmpty ? WhisperKitTranscriptionService.defaultModelId : transcriptionModel,
             language: resolvedTranscriptionLanguage
         )
+        cachedTranscriptionService = svc
+        return svc
     }
 
     private var resolvedTranscriptionLanguage: String? {

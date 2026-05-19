@@ -4,52 +4,6 @@ import Combine
 import Foundation
 import ServiceManagement
 
-private struct SetupProviderSettingsSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var apiBaseURLInput: String
-    @Binding var transcriptionAPIURLInput: String
-    @Binding var transcriptionAPIKeyInput: String
-
-    var body: some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Advanced Provider Settings")
-                    .font(.title2.weight(.semibold))
-                Text("Use these fields when pointing \(AppName.displayName) at another OpenAI-compatible provider or when you need custom model IDs.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(20)
-
-            Divider()
-
-            ScrollView {
-                ProviderSettingsFields(
-                    apiBaseURLInput: $apiBaseURLInput,
-                    transcriptionAPIURLInput: $transcriptionAPIURLInput,
-                    transcriptionAPIKeyInput: $transcriptionAPIKeyInput,
-                    showsModelDescription: true
-                )
-                .padding(20)
-            }
-
-            Divider()
-
-            HStack {
-                Spacer()
-                Button("Done") {
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-            .padding(16)
-        }
-        .frame(width: 560, height: 520)
-    }
-}
-
 struct SetupView: View {
     var onComplete: () -> Void
     @EnvironmentObject var appState: AppState
@@ -57,7 +11,6 @@ struct SetupView: View {
     private let freeflowRepoURL = URL(string: "https://github.com/zachlatta/freeflow")!
     private enum SetupStep: Int, CaseIterable {
         case welcome = 0
-        case apiKey
         case micPermission
         case accessibility
         case screenRecording
@@ -74,13 +27,6 @@ struct SetupView: View {
     @State private var currentStep = SetupStep.welcome
     @State private var micPermissionGranted = false
     @State private var accessibilityGranted = false
-    @State private var apiKeyInput: String = ""
-    @State private var apiBaseURLInput: String = ""
-    @State private var transcriptionAPIURLInput: String = ""
-    @State private var transcriptionAPIKeyInput: String = ""
-    @State private var isValidatingKey = false
-    @State private var keyValidationError: String?
-    @State private var showingProviderSettingsSheet = false
     @State private var accessibilityTimer: Timer?
     @State private var screenRecordingTimer: Timer?
     @State private var customVocabularyInput: String = ""
@@ -125,12 +71,10 @@ struct SetupView: View {
                     Group {
                         if currentStep != .welcome {
                             Button("Back") {
-                                keyValidationError = nil
                                 withAnimation {
                                     currentStep = previousStep(currentStep)
                                 }
                             }
-                            .disabled(isValidatingKey)
                         }
                     }
 
@@ -138,13 +82,7 @@ struct SetupView: View {
 
                     Group {
                         if currentStep != .ready {
-                            if currentStep == .apiKey {
-                                // API key no longer required — local Whisper + Bedrock handle STT/LLM.
-                                Button("Continue") {
-                                    withAnimation { currentStep = nextStep(currentStep) }
-                                }
-                                .keyboardShortcut(.defaultAction)
-                            } else if currentStep == .vocabulary {
+                            if currentStep == .vocabulary {
                                 Button("Continue") {
                                     saveCustomVocabularyAndContinue()
                                 }
@@ -192,10 +130,6 @@ struct SetupView: View {
         }
         .frame(width: 520, height: 680)
         .onAppear {
-            apiKeyInput = appState.apiKey
-            apiBaseURLInput = appState.apiBaseURL
-            transcriptionAPIURLInput = appState.transcriptionAPIURL
-            transcriptionAPIKeyInput = appState.transcriptionAPIKey
             customVocabularyInput = appState.customVocabulary
             checkMicPermission()
             checkAccessibility()
@@ -207,14 +141,6 @@ struct SetupView: View {
             accessibilityTimer?.invalidate()
             screenRecordingTimer?.invalidate()
             appState.resumeHotkeyMonitoringAfterShortcutCapture()
-        }
-        .sheet(isPresented: $showingProviderSettingsSheet) {
-            SetupProviderSettingsSheet(
-                apiBaseURLInput: $apiBaseURLInput,
-                transcriptionAPIURLInput: $transcriptionAPIURLInput,
-                transcriptionAPIKeyInput: $transcriptionAPIKeyInput
-            )
-                .environmentObject(appState)
         }
         .onChange(of: isCapturingShortcut) { isCapturing in
             if isCapturing {
@@ -230,8 +156,6 @@ struct SetupView: View {
         switch currentStep {
         case .welcome:
             welcomeStep
-        case .apiKey:
-            apiKeyStep
         case .micPermission:
             micPermissionStep
         case .accessibility:
@@ -377,99 +301,6 @@ struct SetupView: View {
             )
 
         }
-    }
-
-    var apiKeyStep: some View {
-        VStack {
-            Spacer(minLength: 0)
-
-            VStack(spacing: 20) {
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.green)
-
-                Text("Privacy-First Setup")
-                    .font(.title)
-                    .fontWeight(.bold)
-
-                Text("No API key required. This build uses **local Whisper** (on-device via Apple Neural Engine) for speech-to-text and **AWS Bedrock** for cleanup — no audio or text leaves your machine to unapproved vendors.")
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                VStack(alignment: .leading, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Using Groq?")
-                            .font(.subheadline.weight(.semibold))
-                        VStack(alignment: .leading, spacing: 2) {
-                            instructionRow(number: "1", text: "Go to [console.groq.com/keys](https://console.groq.com/keys)")
-                            instructionRow(number: "2", text: "Create a free account (if you don't have one)")
-                            instructionRow(number: "3", text: "Click **Create API Key** and copy it")
-                        }
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.blue.opacity(0.06))
-                    )
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("API Key")
-                            .font(.headline)
-                        SecureField("Paste your API key", text: $apiKeyInput)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.system(.body, design: .monospaced))
-                            .disabled(isValidatingKey)
-                            .onChange(of: apiKeyInput) { _ in
-                                keyValidationError = nil
-                            }
-
-                        if let error = keyValidationError {
-                            Label(error, systemImage: "xmark.circle.fill")
-                                .foregroundStyle(.red)
-                                .font(.caption)
-                        }
-                    }
-
-                    Button {
-                        showingProviderSettingsSheet = true
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "slider.horizontal.3")
-                                .foregroundStyle(.secondary)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Advanced Provider Settings")
-                                    .foregroundStyle(.primary)
-                                Text("Base URL and model IDs")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "arrow.up.right.square")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.55))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 8)
-                }
-            }
-            .frame(maxWidth: 440)
-
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     var micPermissionStep: some View {
@@ -1077,45 +908,7 @@ struct SetupView: View {
         "\(testShortcutPrompt) to try again"
     }
 
-    // MARK: - Helpers
-
-    private func instructionRow(number: String, text: LocalizedStringKey) -> some View {
-        HStack(alignment: .top, spacing: 6) {
-            Text(number + ".")
-                .font(.subheadline.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 16, alignment: .trailing)
-            Text(text)
-                .font(.subheadline)
-                .tint(.blue)
-        }
-    }
-
     // MARK: - Actions
-
-    func validateAndContinue() {
-        let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        let baseURL = apiBaseURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedBaseURL = baseURL.isEmpty ? AppState.defaultAPIBaseURL : baseURL
-        appState.apiBaseURL = resolvedBaseURL
-        isValidatingKey = true
-        keyValidationError = nil
-
-        Task {
-            let valid = await TranscriptionService.validateAPIKey(key, baseURL: resolvedBaseURL)
-            await MainActor.run {
-                isValidatingKey = false
-                if valid {
-                    appState.apiKey = key
-                    withAnimation {
-                        currentStep = nextStep(currentStep)
-                    }
-                } else {
-                    keyValidationError = "Validation failed. Please check your API key and provider settings, then try again."
-                }
-            }
-        }
-    }
 
     func saveCustomVocabularyAndContinue() {
         appState.customVocabulary = customVocabularyInput.trimmingCharacters(in: .whitespacesAndNewlines)
