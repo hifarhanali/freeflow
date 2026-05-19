@@ -1219,13 +1219,7 @@ struct PromptsSettingsView: View {
                         }
                     }
                 }
-                .disabled(systemTestRunning || appState.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || systemTestInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                if appState.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Label("API key required to test", systemImage: "exclamationmark.triangle")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
+                .disabled(systemTestRunning || systemTestInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 if let error = systemTestError {
                     Label(error, systemImage: "xmark.circle.fill")
@@ -1477,13 +1471,7 @@ struct PromptsSettingsView: View {
                         }
                     }
                 }
-                .disabled(contextTestRunning || appState.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                if appState.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Label("API key required to test", systemImage: "exclamationmark.triangle")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
+                .disabled(contextTestRunning)
 
                 if let error = contextTestError {
                     Label(error, systemImage: "xmark.circle.fill")

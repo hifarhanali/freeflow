@@ -1,9 +1,9 @@
-# FreeFlow (Motive Internal Build)
+# FreeFlow
 
-A Mac dictation app that runs entirely on-device and on approved infrastructure — no external API keys required.
+A Mac dictation app that runs entirely on-device — no external API keys required.
 
 - **Speech-to-text:** [WhisperKit](https://github.com/argmaxinc/WhisperKit) running locally on Apple Neural Engine / CPU
-- **AI cleanup:** AWS Bedrock (Claude) via Motive's internal gateway
+- **AI cleanup:** AWS Bedrock (Claude) via a Bearer token
 
 ---
 
@@ -39,7 +39,7 @@ Add to `~/.zshrc` (or `~/.bash_profile` on Intel):
 export AWS_BEARER_TOKEN_BEDROCK="your-token-here"
 
 # Optional: override the default Bedrock gateway URL
-export BEDROCK_GATEWAY_URL="https://your-internal-gateway/v1"
+export BEDROCK_GATEWAY_URL="https://your-gateway/v1"
 ```
 
 Reload: `source ~/.zshrc`
