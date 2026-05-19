@@ -55,10 +55,10 @@ enum BedrockTransport {
         let gatewayBase = env["BEDROCK_GATEWAY_URL"].flatMap { $0.isEmpty ? nil : $0 }
             ?? "https://bedrock-runtime.\(region).amazonaws.com/v1"
 
-        // Keep the original path (e.g. /chat/completions) but swap the base
-        let originalPath = originalRequest.url?.path ?? "/chat/completions"
-        guard let url = URL(string: gatewayBase.trimmingCharacters(in: .init(charactersIn: "/")) + originalPath) else {
-            throw BedrockError.invalidRequest("Cannot construct gateway URL from \(gatewayBase)\(originalPath)")
+        // Always use /chat/completions — the original request URL may carry a Groq
+        // base path like /openai/v1 that must not be forwarded to the Bedrock gateway.
+        guard let url = URL(string: gatewayBase.trimmingCharacters(in: .init(charactersIn: "/")) + "/chat/completions") else {
+            throw BedrockError.invalidRequest("Cannot construct gateway URL from \(gatewayBase)")
         }
 
         var req = URLRequest(url: url)
