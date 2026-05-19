@@ -397,15 +397,9 @@ struct SetupView: View {
                 .font(.title)
                 .fontWeight(.bold)
 
-            Text("\(AppName.displayName) intelligently adapts the transcription to the current app you're working in (ex. spelling names in an email correctly).")
+            Text("Optional — enables context-aware transcription. \(AppName.displayName) can take a screenshot of your active window and send it to Bedrock so the LLM can infer context (e.g. spelling names from an email correctly). Skip this if you don't need it.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("It needs this permission to see which app you're working in and any in-progress work. Nothing is stored on \(AppName.displayName)'s servers (\(AppName.displayName) doesn't have servers).")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-                .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack {
@@ -880,10 +874,6 @@ struct SetupView: View {
         switch currentStep {
         case .micPermission:
             return micPermissionGranted
-        case .accessibility:
-            return accessibilityGranted
-        case .screenRecording:
-            return appState.hasScreenRecordingPermission
         case .testTranscription:
             return testPhase == .done && !testTranscript.isEmpty && testError == nil
         default:
