@@ -750,15 +750,16 @@ final class AppState: ObservableObject, @unchecked Sendable {
         AppState.writeRecordingStateFlag(false)
 
         // Pre-download / warm the WhisperKit model so first dictation is instant.
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             guard let self else { return }
-            self.statusText = "Loading Whisper model..."
+            await MainActor.run { self.statusText = "Loading Whisper model..." }
             do {
-                let svc = try self.makeTranscriptionService()
+                let svc = try await MainActor.run { try self.makeTranscriptionService() }
                 try await svc.loadModel()
-                self.statusText = "Ready"
+                await MainActor.run { self.statusText = "Ready" }
             } catch {
-                self.statusText = "Ready"  // fall back silently; model loads on first use
+                print("[WhisperKit preload error] \(error)")
+                await MainActor.run { self.statusText = "Ready" }
             }
         }
     }

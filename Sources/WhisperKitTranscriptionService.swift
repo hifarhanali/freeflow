@@ -10,12 +10,12 @@ final class WhisperKitTranscriptionService {
 
     // Model size options exposed in Settings. Larger = more accurate, slower first load.
     static let availableModels: [(id: String, label: String)] = [
-        ("openai_whisper-base.en",         "Base · English-only (~140 MB, fastest)"),
-        ("openai_whisper-small.en",        "Small · English-only (~480 MB)"),
-        ("openai_whisper-large-v3-turbo",  "Large Turbo · multilingual (~800 MB, recommended)"),
-        ("openai_whisper-large-v3",        "Large v3 · multilingual (~1.5 GB, best accuracy)")
+        ("openai_whisper-base.en",                  "Base · English-only (~140 MB, fastest)"),
+        ("openai_whisper-small.en",                 "Small · English-only (~480 MB)"),
+        ("openai_whisper-large-v3-v20240930_turbo", "Large Turbo · multilingual (~800 MB, recommended)"),
+        ("openai_whisper-large-v3_947MB",           "Large v3 · multilingual (~950 MB, best accuracy)")
     ]
-    static let defaultModelId = "openai_whisper-large-v3-turbo"
+    static let defaultModelId = "openai_whisper-base.en"
 
     private var kit: WhisperKit?
     private let modelId: String
@@ -30,7 +30,8 @@ final class WhisperKitTranscriptionService {
     func loadModel() async throws {
         guard kit == nil else { return }
         os_log(.info, log: log, "Loading WhisperKit model: %{public}@", modelId)
-        kit = try await WhisperKit(model: modelId, verbose: false)
+        print("[WhisperKit] loading model: \(modelId)")
+        kit = try await WhisperKit(model: modelId, verbose: true)
         os_log(.info, log: log, "WhisperKit model ready")
     }
 
