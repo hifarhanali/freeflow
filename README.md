@@ -1,93 +1,140 @@
-<p align="center">
-  <img src="Resources/AppIcon-Source.png" width="128" height="128" alt="FreeFlow icon">
-</p>
+# FreeFlow (Motive Internal Build)
 
-<h1 align="center">FreeFlow</h1>
+A Mac dictation app that runs entirely on-device and on approved infrastructure — no external API keys required.
 
-<p align="center">
-  Free and open source alternative to <a href="https://wisprflow.ai">Wispr Flow</a>, <a href="https://superwhisper.com">Superwhisper</a>, and <a href="https://monologue.to">Monologue</a>.
-</p>
-
-<p align="center">
-  <a href="https://github.com/zachlatta/freeflow/releases/latest/download/FreeFlow.dmg"><b>⬇ Download FreeFlow.dmg</b></a><br>
-  <sub>Works on all Macs (Apple Silicon + Intel)</sub>
-</p>
+- **Speech-to-text:** [WhisperKit](https://github.com/argmaxinc/WhisperKit) running locally on Apple Neural Engine / CPU
+- **AI cleanup:** AWS Bedrock (Claude) via Motive's internal gateway
 
 ---
 
-<p align="center">
-  <img src="Resources/demo.gif" alt="FreeFlow demo" width="600">
-</p>
+## Requirements
 
-<p align="center">
-  <i>Thank you to <a href="https://github.com/marcbodea">@marcbodea</a> for maintaining FreeFlow!</i>
-</p>
+- macOS 13 (Ventura) or later
+- Apple Silicon **or** Intel Mac
+- Xcode Command Line Tools (`xcode-select --install`)
+- AWS Bedrock bearer token (`AWS_BEARER_TOKEN_BEDROCK`)
 
-## Overview
+---
 
-FreeFlow is a free Mac dictation app inspired by [Wispr Flow](https://wisprflow.ai/), [Superwhisper](https://superwhisper.com/), and [Monologue](https://www.monologue.to/). It gives you fast AI transcription, context-aware cleanup, and voice-driven text editing without a monthly subscription.
+## Build & Run
 
-## Quick Start
+### 1. Install Xcode Command Line Tools
 
-1. Download the app from above or [click here](https://github.com/zachlatta/freeflow/releases/latest/download/FreeFlow.dmg)
-2. Get a free Groq API key from [groq.com](https://groq.com/)
-3. Hold `Fn` to talk, or tap `Command-Fn` to start and stop dictation, and have whatever you say pasted into the current text field
+```bash
+xcode-select --install
+```
 
-## Features
+### 2. Clone the repo
 
-- **Custom shortcuts:** Customize both hold-to-talk and toggle dictation shortcuts. If your toggle shortcut extends your hold shortcut, you can start in hold mode and press the extra modifier keys to latch into tap mode without stopping the recording.
-- **Context-aware cleanup:** FreeFlow can read nearby app context so names, terms, and phrases are spelled correctly when you dictate into email, terminals, docs, and other apps.
-- **Custom vocabulary:** Add names, jargon, and project-specific words that FreeFlow should preserve during cleanup.
-- **OpenAI-compatible providers:** Use Groq by default, or configure a custom model and API URL in settings.
+```bash
+git clone https://github.com/hifarhanali/freeflow.git
+cd freeflow
+```
 
-## Edit Mode
+### 3. Set your Bedrock credentials
 
-Edit Mode lets you highlight existing text and transform it with a spoken instruction, like "make this shorter" or "turn this into bullets." Enable it in settings, then use your normal dictation shortcut on selected text, or choose Manual mode to require an extra modifier key.
+Add to `~/.zshrc` (or `~/.bash_profile` on Intel):
+
+```bash
+export AWS_BEARER_TOKEN_BEDROCK="your-token-here"
+
+# Optional: override the default Bedrock gateway URL
+export BEDROCK_GATEWAY_URL="https://your-internal-gateway/v1"
+```
+
+Reload: `source ~/.zshrc`
+
+### 4. Build
+
+```bash
+# Apple Silicon (M1 / M2 / M3 / M4)
+make
+
+# Intel Mac
+make ARCH=x86_64
+
+# Universal binary — runs on both
+make ARCH=universal
+```
+
+The app is built at `build/FreeFlow Dev.app`.
+
+### 5. Run
+
+```bash
+make run
+```
+
+Or double-click `build/FreeFlow Dev.app` in Finder.
+
+### 6. Grant permissions on first launch
+
+macOS will prompt for:
+
+| Permission | Why |
+|---|---|
+| **Microphone** | Record your voice |
+| **Accessibility** | Type transcribed text at your cursor |
+| **Screen Recording** | Optional — improves context-aware cleanup |
+
+For **Accessibility**: go to System Settings → Privacy & Security → Accessibility and toggle **FreeFlow Dev** on. The app detects the grant automatically within a few seconds — no restart needed.
+
+---
+
+## Usage
+
+| Action | What happens |
+|---|---|
+| Hold **Right Option ⌥** | Records while held; transcribes on release |
+| Select text + hold shortcut | Transforms selected text with your voice |
+
+Shortcuts can be changed in **Settings → Dictation Shortcuts**.
+
+---
+
+## First-Run Model Download
+
+On first dictation, WhisperKit downloads the speech model to:
+
+```
+~/Library/Application Support/huggingface/models/argmaxinc/whisperkit-coreml/
+```
+
+This is a one-time download. The default is **Base English (~140 MB)**. Larger models can be selected in **Settings → AI Models**:
+
+| Model | Size | Notes |
+|---|---|---|
+| Base · English-only | ~140 MB | Default, fastest |
+| Small · English-only | ~480 MB | More accurate |
+| Large Turbo · multilingual | ~800 MB | Recommended for non-English |
+| Large v3 · multilingual | ~950 MB | Best accuracy |
+
+---
+
+## Settings
+
+Click the menu bar icon → **Settings**:
+
+- **AI Models** — Whisper model size, Bedrock model ID
+- **Dictation Shortcuts** — hold and toggle keys
+- **Edit Mode** — transform selected text with voice commands
+- **Custom Vocabulary** — names, acronyms, and jargon to preserve exactly
+- **Custom Prompt** — override the default cleanup behaviour
+
+---
+
+## Rebuilding After Code Changes
+
+```bash
+pkill -x "FreeFlow Dev"; make run
+```
+
+Settings, shortcuts, and permissions are preserved across rebuilds — they are stored by bundle ID, not binary path.
+
+---
 
 ## Privacy
 
-There is no FreeFlow server, so FreeFlow does not store or retain your data. The only information that leaves your computer are API calls to your configured transcription and LLM provider.
-
-## Custom Cleanup
-
-If you'd rather keep cleanup more literal and less context-aware, you can paste this simpler prompt into the custom system prompt setting:
-
-<details>
-  <summary>Simple post-processing prompt</summary>
-
-  <pre><code>You are a dictation post-processor. You receive raw speech-to-text output and return clean text ready to be typed into an application.
-
-Your job:
-- Remove filler words (um, uh, you know, like) unless they carry meaning.
-- Fix spelling, grammar, and punctuation errors.
-- When the transcript already contains a word that is a close misspelling of a name or term from the context or custom vocabulary, correct the spelling. Never insert names or terms from context that the speaker did not say.
-- Preserve the speaker's intent, tone, and meaning exactly.
-
-Output rules:
-- Return ONLY the cleaned transcript text, nothing else. So NEVER output words like "Here is the cleaned transcript text:"
-- If the transcription is empty, return exactly: EMPTY
-- Do not add words, names, or content that are not in the transcription. The context is only for correcting spelling of words already spoken.
-- Do not change the meaning of what was said.
-
-Example:
-RAW_TRANSCRIPTION: "hey um so i just wanted to like follow up on the meating from yesterday i think we should definately move the dedline to next friday becuz the desine team still needs more time to finish the mock ups and um yeah let me know if that works for you ok thanks"
-
-Then your response would be ONLY the cleaned up text, so here your response is ONLY:
-"Hey, I just wanted to follow up on the meeting from yesterday. I think we should definitely move the deadline to next Friday because the design team still needs more time to finish the mockups. Let me know if that works for you. Thanks."</code></pre>
-</details>
-
-## FAQ
-
-**Why does this use Groq instead of a local transcription model?**
-
-I love this idea, and originally planned to build FreeFlow using local models, but to have post-processing (that's where you get correctly spelled names when replying to emails / etc), you need to have a local LLM too.
-
-If you do that, the total pipeline takes too long for the UX to be good (5-10 seconds per transcription instead of <1s). I also had concerns around battery life.
-
-Some day!
-
-**Update:** You can now use a custom model with FreeFlow by configuring the LLM API URL in the FreeFlow settings to use Ollama. Thank you @taciturnaxolotl!
-
-## License
-
-Licensed under the MIT license.
+- Audio is processed **entirely on-device** by WhisperKit and never leaves your Mac.
+- Only the transcribed text is sent to AWS Bedrock for cleanup.
+- No telemetry, no analytics, no third-party services.
